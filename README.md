@@ -12,4 +12,4 @@ Algunos puntos importantes a considerar:
 
 Nota: Este desafío es optativo si ya has hecho un desafío con Spike. Mándanos en ese caso un link.
     
-    
+Desafío (borrador): https://docs.google.com/document/d/1OBoCwSaMq_XKu3-IzaV3jO0W_8JVor3zSK5t-wq0GQU/edit?ts=6070900b#
