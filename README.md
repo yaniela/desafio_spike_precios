@@ -10,6 +10,6 @@ Algunos puntos importantes a considerar:
 * Entrega tu desafío acá: HACER EL FORMS
 * Finalmente, ¡lee bien las instrucciones!
 
-
+Nota: Este desafío es optativo si ya has hecho un desafío con Spike. Mándanos en ese caso un link.
     
     
