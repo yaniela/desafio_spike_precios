@@ -7,7 +7,7 @@ Algunos puntos importantes a considerar:
 * Tendrás hasta el lunes 19/04 a las 23:59 para enviar tus respuestas al desafío.
 * Solo se aceptarán Jupyter notebook (recomendado), R Markdown o R Notebook como formatos de entrega y solamente python o R. La idea es que sea fácil para nosotros correr lo que ustedes escribieron (y que sea reproducible).
 * Habilitamos un canal en Gitter para que todos puedan colaborar entre sí. Ingresa en XXXXX LINK GITTER XXXXX (se requiere cuenta github o gitlab).
-* Entrega tu desafío acá: HACER EL FORMS
+* Entrega tu desafío acá: https://docs.google.com/forms/d/e/1FAIpQLSfErntuGGAVA7TwNWMEreX2K2jEv-6cYmVjR-bCeyEdj4sK2w/viewform
 * Finalmente, ¡lee bien las instrucciones!
 
 Nota: Este desafío es optativo si ya has hecho un desafío con Spike. Avísanos en ese caso y revisaremos el desafío correspondiente.
