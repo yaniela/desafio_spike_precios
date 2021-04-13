@@ -10,4 +10,4 @@ Algunos puntos importantes a considerar:
 * Entrega tu desafío acá: https://docs.google.com/forms/d/e/1FAIpQLSfErntuGGAVA7TwNWMEreX2K2jEv-6cYmVjR-bCeyEdj4sK2w/viewform
 * Finalmente, ¡lee bien las instrucciones!
 
-Nota: Este desafío es optativo si ya has hecho un desafío con Spike. Avísanos en ese caso y revisaremos el desafío correspondiente.
+Nota: Este desafío es optativo si es que ya has hecho un desafío con Spike. Si quieres que revisemos un desafío anterior tuyo, avísanos!
