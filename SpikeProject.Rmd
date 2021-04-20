@@ -1,0 +1,124 @@
+---
+title: "SpikeProject"
+author: "Yaniela Fernandez M."
+date: "4/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.Datos: Precipitaciones, Indicadores Económicos Banco Central
+
+```{r warning=FALSE, message=FALSE, results='hide'}
+library(stringr)
+library(ggplot2)
+library(lattice)
+library(zoo)
+library(xts) 
+library('Hmisc')
+
+# Cargando los datasets
+precip <- read.csv("precipitaciones.csv", na.strings=c("NA","#DIV/0!", ""))
+banc<-read.csv("banco_central.csv", na.strings=c("NA","#DIV/0!", ""))
+```
+
+## 2.Análisis de datos. Creación de variables 
+Realiza un análisis exploratorio de la base de datos. ¿Qué puedes decir de los datos,sus distribuciones, valores faltantes,otros? ¿Hay algo que te llame la atención? 
+
+### Estructura del dataframe precip
+
+```{r }
+
+describe(precip)
+
+```
+
+Se observan 9 variables con 496 filas. El dataset no presenta valores NA, tomanos como este tipo de valores las celdas con *""*, *"NA"* y *"#DIV/0!"*. #El periodo de fechas va desde el 1/1/1979 hasta el 1/4/2020 Se observa los valores medios de precipitaciones en cada region, siendo la región de los Rios donde más llueve.
+
+```{r }
+## No existen filas duplicadas en precip
+sum(duplicated(precip)==TRUE)
+```
+
+### Estructura del dataframe banc
+
+En el dataset del banco central el índice *imacec* y el *PIB* son de tipo cadena, en cambio los valores referidos al *precio* son de tipo numeric. 
+
+```{r }
+str(banc)
+```
+
+ 
+La Fig 1 muestra las columnas con valores NA. Varias sobrepasan el 50% de celdas con estos valores.   
+
+```{r fig.cap='**Fig 1: Comportamiento de los Valores NA por columnas**', fig.height = 8, fig.width = 10, fig.align='center'}
+missing_values_by_columns<-apply(is.na(banc), 2, mean) 
+df<-as.data.frame(missing_values_by_columns)
+df$names<-row.names(df)
+plot1 <-ggplot(data = df, aes(x = missing_values_by_columns, y =names , fill = missing_values_by_columns)) + geom_bar(width =0.7, stat = "identity") + scale_fill_gradient(low = "yellow", high = "red") +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+print(plot1)
+```
+
+La cantidad de filas duplicadas en banc es solo 2.
+```{r }
+sum(duplicated(banc)==TRUE)
+```
+
+Faltaría realizar un analisis de la distribucion de ambos datasets, asumimos que es normal.
+
+## Realiza una limpieza de datos para que las series de tiempo no tengan duplicados ni valores incorrectos. 
+
+Para realizar los anterior, no elimino las filas con valores NA por que pueden influir en el resultado de los modelos. Solo serán transformados los datos incorrectos y los tipos de datos de la fecha a Date. 
+
+```{r }
+banc<-banc[!duplicated(banc),] ##Eliminando filas duplicadas
+
+precip$date<-as.Date(precip$date) ## Transformando las fechas a Date
+banc$Periodo<-as.Date(banc$Periodo)
+
+#Revisando si existe alguna fila con fecha incorrecta en banc para eliminarla 
+sum(is.na(banc$Periodo)==TRUE)
+
+# Como existe una fecha incorrecta elimino esa fila del dataset
+banc<-banc[!is.na(banc$Periodo),]
+
+#En precip todas las fechas son correctas
+sum(is.na(precip$date)==TRUE)
+```
+
+# 3. Visualizacion
+ Crea una función que permita graficar series históricas de precipitaciones para un rango de fechas determinado. Para esto la función debe recibir como argumentos el nombre de una región, fecha de inicio y fecha de término (asegúrate de verificar en tu función que tanto el nombre de la región como las fechas ingresadas existan en el dataset.
+
+Usa esta función para graficar las precipitaciones para la Región Libertador General Bernardo O'Higgins y para la Región Metropolitana entre las fechas 2000-01-01 y 2020-01-01.¿ Qué observas con respecto a estacionalidades y tendencias?
+
+```{r fig.cap='**Fig 1: Comportamiento de las precipitaciones en dos regiones**', fig.height = 5, fig.width = 7, fig.align='center'}
+plotSerieByRegion <- function(region, inicDate, endDate) {
+  inicDate<-as.Date(inicDate)
+  endDate<-as.Date(endDate)
+  
+  region<- iconv(region,to="ASCII//TRANSLIT")# eliminar tilde
+  region<-str_replace_all(region, "[^[:alnum:]]", " ")
+  
+  if(grepl("Higgins",region, fixed = TRUE)) region="Libertador_Gral_Bernardo_O_Higgins"
+  if(grepl("Metropolitana",region, fixed = TRUE)) region="Metropolitana_de_Santiago"
+  
+  index=grep(region,colnames(precip), fixed = TRUE)
+    
+  d1=precip[precip$date >= inicDate & precip$date <=endDate,c(1,index)]
+  d1xts=xts(x =d1[,2] , order.by = d1$date)
+ 
+}
+region1<-plotSerieByRegion("Metropolitana", "2000-01-01", "2020-01-01")
+region2<-plotSerieByRegion("Libertador", "2000-01-01", "2020-01-01")
+
+all=merge(region1,region2, join="outer")
+plot(all, legend.loc = "topright", yaxis.right=FALSE)
+
+
+```
+
+Las dos regiones tienen la misma tendencia en los mismos periodos estacionales, la única diferencia es que en una llueve más que otra. 
+
