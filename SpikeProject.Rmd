@@ -18,6 +18,8 @@ library(lattice)
 library(zoo)
 library(xts) 
 library('Hmisc')
+library(dygraphs)
+library(tidyr)
 
 # Cargando los datasets
 precip <- read.csv("precipitaciones.csv", na.strings=c("NA","#DIV/0!", ""))
@@ -25,17 +27,52 @@ banc<-read.csv("banco_central.csv", na.strings=c("NA","#DIV/0!", ""))
 ```
 
 ## 2.Análisis de datos. Creación de variables 
-Realiza un análisis exploratorio de la base de datos. ¿Qué puedes decir de los datos,sus distribuciones, valores faltantes,otros? ¿Hay algo que te llame la atención? 
+*2.1.Realiza un análisis exploratorio de la base de datos. ¿Qué puedes decir de los datos,sus distribuciones, valores faltantes,otros? ¿Hay algo que te llame la atención?* 
 
-### Estructura del dataframe precip
+El resumen estadístico más básico de una lista de objetos o números es su distribución. Una vez que un vector o variable de un datset se haya resumido como una distribución, existen varias técnicas de visualización de datos para transmitir esta información de manera efectiva. 
+
+En este caso vamos a realizar una exploración de cada una de las variables de los datsets
+*precipitaciones.csv* y *banco_central.csv*
+
+### Análisis del dataset precipitaciones.csv
 
 ```{r }
 
-describe(precip)
+summary(precip)
 
 ```
 
-Se observan 9 variables con 496 filas. El dataset no presenta valores NA, tomanos como este tipo de valores las celdas con *""*, *"NA"* y *"#DIV/0!"*. #El periodo de fechas va desde el 1/1/1979 hasta el 1/4/2020 Se observa los valores medios de precipitaciones en cada region, siendo la región de los Rios donde más llueve.
+Se observan 9 variables con 496 filas. El dataset no presenta valores NA, tomanos como este tipo de valores las celdas con *""*, *"NA"* y *"#DIV/0!"*. Se observa los valores medios y la mediana de precipitaciones en cada region, siendo la región de los Rios donde cae la mayor cantidad de precipitaciones como promedio 199.4518. Observaremos mejor la distribucion de estas variables en la Fig 1.
+
+```{r fig.cap='**Fig 1: Distribucion de las variables precipitaciones por regiones**', fig.height = 8, fig.width = 10, fig.align='center'}
+
+df<-precip[,-1]
+
+# la funcion gather convierte df en dos columnas key(con el nombre de las columnas) y value (los  valores de cada columna)
+
+ # key       value
+#1 Coquimbo 0.719032676
+#2 Coquimbo 0.065215687
+#3 Coquimbo 2.030026141
+#4 Coquimbo 0.622784314
+#5 Coquimbo 0.008065359
+#6 Coquimbo 0.239366014
+
+ggplot(gather(df), aes(value)) + 
+  geom_histogram(bins = 75)  + 
+  facet_wrap(~key, scales = 'free_x')+xlab("Precipitaciones en mm") 
+
+```
+ 
+Se observa una distribución que no es simétrica, correspondiente a la ecuación de Gumbel, donde los valores mas frecuentes(pico de la campana) son más bajos que la media.Por tanto vamos a calcular las medianas de cada region y graficarlas en la Fig 2. para ver qué region(es) presenta(n) las mayores precipitaciones medias anuales. 
+
+```{r  fig.cap='**Fig 2: Precipitaciones medias anuales por región**', fig.width = 15, fig.align='center' }
+ggplot(gather(df), aes(y=value, x=key)) + xlab("Regiones") + ylab("Precipitaciones en mm")+ 
+geom_boxplot()
+
+```
+
+Se observa que las regiones de mayores precitaciones anuales son Los Ríos y La Araucania. Aqui lo que tendría pensado es transformar el dataset para obtener el promedio general de las precipitaciones en todo chile y no trabajar por regiones. 
 
 ```{r }
 ## No existen filas duplicadas en precip
@@ -44,16 +81,67 @@ sum(duplicated(precip)==TRUE)
 
 ### Estructura del dataframe banc
 
-En el dataset del banco central el índice *imacec* y el *PIB* son de tipo cadena, en cambio los valores referidos al *precio* son de tipo numeric. 
+En el dataset del banco central la mayoria de los valores son de tipo cadena, excepto la variable ventas, por lo que vamos a convertir a numeric los que tienen que ver con el precio, el PIB, la Ocupación, impuesto al valor agregado y derechos de importacion. 
 
-```{r }
-str(banc)
+```{r results='hide' }
+summary(banc)
+```
+
+Cambiar a numeric los valores correspondientes 
+
+
+```{r warning=FALSE}
+
+#Cambiar a numerico el PIB que esta en millones
+
+indexPib<-grep("PIB",colnames(banc), fixed = TRUE)
+indexPrecio<-grep("Precio",colnames(banc), fixed = TRUE)
+indexImacec<-grep("Imacec",colnames(banc), fixed = TRUE)
+
+ for(i in 1:length(indexPib)){
+   banc[,indexPib[i]]<-gsub("[:alpha:]","",banc[,indexPib[i]],fixed=TRUE)
+   banc[,indexPib[i]]<-as.numeric(gsub(".","",banc[,indexPib[i]],fixed=TRUE))
+   banc[,indexPib[i]]<-banc[,indexPib[i]]/1e6
+
+ }
+
+for(i in 1:length(indexPrecio)){
+  banc[,indexPrecio[i]]<-gsub("[:alpha:]","",banc[,indexPrecio[i]],fixed=TRUE)
+  banc[,indexPrecio[i]]<-as.numeric(banc[,indexPrecio[i]])
+}
+
+for(i in 1:length(indexImacec)){
+  banc[,indexImacec[i]]<-gsub("[:alpha:]","",banc[,indexImacec[i]],fixed=TRUE)
+  banc[,indexImacec[i]]<-as.numeric(gsub(".","",banc[,indexImacec[i]],fixed=TRUE))
+  banc[,indexImacec[i]]<-banc[,indexImacec[i]]/1e6
+}
+
+#falta cambiar el impuesto, los indices y la ocupacion
+
+for(i in 38:39){
+  banc[,i]<-gsub("[:alpha:]","",banc[,i],fixed=TRUE)
+  banc[,i]<-as.numeric(gsub(".","",banc[,i],fixed=TRUE))
+  banc[,i]<-banc[,i]/1e6
+}
+
+for(i in 52:74){
+  banc[,i]<-gsub("[:alpha:]","",banc[,i],fixed=TRUE)
+  banc[,i]<-as.numeric(gsub(".","",banc[,i],fixed=TRUE))
+  banc[,i]<-banc[,i]/1e6
+}
+
+for(i in 75:84){
+  banc[,i]<-gsub("[:alpha:]","",banc[,i],fixed=TRUE)
+  banc[,i]<-as.numeric(gsub(".","",banc[,i],fixed=TRUE))
+  banc[,i]<-banc[,i]/1e6
+}
+
 ```
 
  
-La Fig 1 muestra las columnas con valores NA. Varias sobrepasan el 50% de celdas con estos valores.   
+La Fig 3 muestra las columnas con valores NA. Varias sobrepasan el 50% de celdas con estos valores.   
 
-```{r fig.cap='**Fig 1: Comportamiento de los Valores NA por columnas**', fig.height = 8, fig.width = 10, fig.align='center'}
+```{r fig.cap='**Fig 3: Comportamiento de los Valores NA por columnas**', fig.height = 8, fig.width = 10, fig.align='center'}
 missing_values_by_columns<-apply(is.na(banc), 2, mean) 
 df<-as.data.frame(missing_values_by_columns)
 df$names<-row.names(df)
@@ -63,17 +151,23 @@ print(plot1)
 ```
 
 La cantidad de filas duplicadas en banc es solo 2.
+
 ```{r }
 sum(duplicated(banc)==TRUE)
+sum(duplicated(precip)==TRUE)
 ```
 
-Faltaría realizar un analisis de la distribucion de ambos datasets, asumimos que es normal.
-
-## Realiza una limpieza de datos para que las series de tiempo no tengan duplicados ni valores incorrectos. 
-
-Para realizar los anterior, no elimino las filas con valores NA por que pueden influir en el resultado de los modelos. Solo serán transformados los datos incorrectos y los tipos de datos de la fecha a Date. 
+Voy a seleccionar las variables en el dataset que considero relevantes para la predicción que se quiere realizar. En este caso se desea predecir el precio de la leche, que variables de banc 
 
 ```{r }
+summary(banc)
+```
+
+*2.2.Realiza una limpieza de datos para que las series de tiempo no tengan duplicados ni valores incorrectos.* 
+
+Serán transformados los datos de fecha a tipo Date en ambos datasets, en el dataset *banco_central.csv* serán convertidos a numeric las variables del PIB y Precio. Se eliminan ademas las filas duplicadas en *banco_central.csv*,, y una fecha incorrecta con mes 13 en el datset *precipitaciones.csv*
+
+```{r warning=FALSE}
 banc<-banc[!duplicated(banc),] ##Eliminando filas duplicadas
 
 precip$date<-as.Date(precip$date) ## Transformando las fechas a Date
@@ -85,40 +179,190 @@ sum(is.na(banc$Periodo)==TRUE)
 # Como existe una fecha incorrecta elimino esa fila del dataset
 banc<-banc[!is.na(banc$Periodo),]
 
-#En precip todas las fechas son correctas
+#Revisando si existe alguna fila con fecha incorrecta en precip para eliminarla
 sum(is.na(precip$date)==TRUE)
 ```
 
 # 3. Visualizacion
- Crea una función que permita graficar series históricas de precipitaciones para un rango de fechas determinado. Para esto la función debe recibir como argumentos el nombre de una región, fecha de inicio y fecha de término (asegúrate de verificar en tu función que tanto el nombre de la región como las fechas ingresadas existan en el dataset.
+*3.1. Crea una función que permita graficar series históricas de precipitaciones para un rango de fechas determinado. Para esto la función debe recibir como argumentos el nombre de una región, fecha de inicio y fecha de término (asegúrate de verificar en tu función que tanto el nombre de la región como las fechas ingresadas existan en el dataset.*
 
-Usa esta función para graficar las precipitaciones para la Región Libertador General Bernardo O'Higgins y para la Región Metropolitana entre las fechas 2000-01-01 y 2020-01-01.¿ Qué observas con respecto a estacionalidades y tendencias?
+*Usa esta función para graficar las precipitaciones para la Región Libertador General Bernardo O'Higgins y para la Región Metropolitana entre las fechas 2000-01-01 y 2020-01-01.¿ Qué observas con respecto a estacionalidades y tendencias?*
 
-```{r fig.cap='**Fig 1: Comportamiento de las precipitaciones en dos regiones**', fig.height = 5, fig.width = 7, fig.align='center'}
+```{r fig.cap='**Fig 4: Estacionalidades y tendencias de las precipitaciones en dos regiones**', fig.height = 8, fig.width = 10, fig.align='center'}
+
+
 plotSerieByRegion <- function(region, inicDate, endDate) {
+  
   inicDate<-as.Date(inicDate)
   endDate<-as.Date(endDate)
   
+  if(is.null(inicDate)||is.null(endDate)){
+    return( cat("Una de las fechas es invalida"))
+  }
+  
   region<- iconv(region,to="ASCII//TRANSLIT")# eliminar tilde
-  region<-str_replace_all(region, "[^[:alnum:]]", " ")
+  region<-str_replace_all(region, "[^[:alnum:]]", "_")
   
-  if(grepl("Higgins",region, fixed = TRUE)) region="Libertador_Gral_Bernardo_O_Higgins"
+  if(grepl("Libertador",region, fixed = TRUE))  region="Libertador_Gral__Bernardo_O_Higgins"
   if(grepl("Metropolitana",region, fixed = TRUE)) region="Metropolitana_de_Santiago"
-  
-  index=grep(region,colnames(precip), fixed = TRUE)
     
-  d1=precip[precip$date >= inicDate & precip$date <=endDate,c(1,index)]
-  d1xts=xts(x =d1[,2] , order.by = d1$date)
- 
+  if(length(grep(region, colnames(precip), fixed = TRUE)))
+      index=grep(region,colnames(precip), fixed = TRUE)
+    
+   else{ return( cat("La region: " , region , " no es válida"))
+      
+    }
+  
+  #Falta revisar que las fechas existan en el dataset
+  
+  precip_Sort<-precip[order(precip$date),] 
+  precipRegions<-precip_Sort[,index]
+  
+  preciptimeseries <- ts(precipRegions, frequency=12, start=c(format(inicDate, "%Y") ,format(inicDate, "%m")), end=c(format(endDate, "%Y") ,format(endDate, "%m")))
+  
 }
-region1<-plotSerieByRegion("Metropolitana", "2000-01-01", "2020-01-01")
-region2<-plotSerieByRegion("Libertador", "2000-01-01", "2020-01-01")
 
-all=merge(region1,region2, join="outer")
-plot(all, legend.loc = "topright", yaxis.right=FALSE)
+par(mfrow = c(3, 2),  mar = c(2.2, 2.2, 1, 1), cex = 0.8)
+serieTemp1<-plotSerieByRegion(c("Metropolitana"), "2000-01-01", "2020-01-01")
+serieTemp2<-plotSerieByRegion(c("Libertador"), "2000-01-01", "2020-01-01")
+
+plot.ts(serieTemp1, axes=F, main="Región Metropolitana")
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+
+plot.ts(serieTemp2, axes=F,main="Región Libertador")
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+
+trendSerie1 <- decompose(serieTemp1)
+trendSerie2 <- decompose(serieTemp2)
+
+plot.ts(trendSerie1$trend, axes=F,main="Tendencia: Región Metropolitana")
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+plot.ts(trendSerie2$trend, axes=F,main="Tendencia: Región Libertador")
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+
+
+plot.ts(trendSerie1$seasonal, axes=F,main="Estacionalidad: Región Metropolitana")
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+plot.ts(trendSerie2$seasonal, axes=F,main="Estacionalidad: Región Libertador") 
+axis(2) # plot the y axis
+axis(1, at=seq(from=2000,to=2020, by=1.0) )
+box() # and the box around the plot
+```
+
+Las gráficas muestran las series originales en las regiones Metropolitana y Libertador (1ra desde el tope), la tendencia estimada de cada serie (2da), y el comportamiento estacional(3ra). Podemos observar que la tendencia de las precipitaciones es la misma en ambas regiones, con periodos de sequia en los años 2006, 2009, 2011 y 2017. El componente estacional, se mantiene constante en ambas gráficas a lo laro de los años, y los picos de precipitaciones ocurren a mitad de año entre los meses de Mayo y Agosto.
+
+*3.2. Crea  una  función  que,  para  una  región,grafique  múltiples  series  de  tiempo mensuales de precipitaciones, donde cada serie de tiempo corresponda a un año. La función debe recibir como argumento una lista con los años que queremos graficar (2000,  2005,..)  y  el  nombre  de  la  región.El  eje  X  debe  indicar  los  meses  (enero, febrero, etc...).*
+
+*Usa esta función para graficar las precipitaciones para la Región del Maule durante los años 1982, 1992, 2002, 2012 y 2019.o¿Qué puedes concluir de estos gráficos?*
+
+```{r fig.cap='**Fig 5: Precipitaciones region del Maule**', fig.height = 5, fig.width = 8, fig.align='center'}
+
+plotSerieByYear<-function(region, years){
+  
+  precip_Sort<-precip[order(precip$date),] 
+  if(length(grep(region, colnames(precip), fixed = TRUE))){
+    index=grep(region,colnames(precip), fixed = TRUE)
+  } else cat("La region: " , region , " no es válida")
+  
+  df<-precip_Sort[format(as.Date(precip_Sort$date), "%Y")  %in% years,c(1,index)]
+  df$Year<-as.numeric(format(df$date, "%Y"))
+  df$Month<-format(df$date, "%m")
+  
+  qplot(Month, df[,2], data = df, geom = "line", group = Year, ylab = str_c("Region ", region)) + 
+    facet_grid(df$Year ~ ., scale = "free_y")
+  
+}
+
+plotSerieByYear("Maule",c("1982", "1992", "2002", "2012", "2019") )
 
 
 ```
 
-Las dos regiones tienen la misma tendencia en los mismos periodos estacionales, la única diferencia es que en una llueve más que otra. 
+En la gráfica se observa que los meses de lluvia se han ido acortando cada 10  años. En 1982 duraban las lluvias desde Abril hasta Octubre, estos meses se han ido reduciendo hasta el 2019 que alcanzó desde abril a Julio. Además la cantidad de mm de precipitaciones en el período de lluvia ha disminuido de 550 mm a 200 mm en el 2019. 
+
+*Crea una función que permita visualizar dos series históricas de PIB para un rango de fechas determinado. Para esto la función debe recibir como input el nombre de cada #serie,fecha de inicio y fecha de término.*
+
+*Grafica las series de tiempo del PIB agropecuario y silvícola y la del PIB de Servicios financieros desde el 2013-01-01 hasta la fecha más reciente en que haya datos.¿Qué puedes decir de cada serie en particular?, ¿Hay alguna relación entre estas dos series?*
+
+
+```{r fig.cap='**Fig 6: Comportamiento del PIB agropecuario y silvícola, y de Servicios financieros **', fig.height = 5, fig.width = 8, fig.align='center'}
+plotSeriesPIB<-function(name1="silvicola",name2="financieros", inicDate="2013-01-01", endDate="2020-04-01"){
+  
+  # validando los argumentos
+  
+  banc_Sort<-banc[order(banc$Periodo),] 
+  if(length(grep(name1, colnames(banc_Sort), fixed = TRUE))){
+    index1=grep(name1, colnames(banc_Sort), fixed = TRUE)
+  } else cat("El pib: " ,name1 , " no es válido")
+  
+  if(length(grep(name2, colnames(banc_Sort), fixed = TRUE))){
+    index2=grep(name2, colnames(banc_Sort), fixed = TRUE)
+  }
+  
+  inicDate<-as.Date(inicDate)
+  endDate<-as.Date(endDate)
+  
+  # seleccionando las columnas del dataframe
+  
+  df<-banc_Sort[banc_Sort$Periodo>=inicDate & banc_Sort$Periodo<=endDate,c(1,index1, index2)]
+  df[,2]<-as.numeric(df[,2])
+  df[,3]<-as.numeric(df[,3])
+  df %>% replace(is.na(.), 0)
+  
+  serieTemp1 <- ts(df[,2], frequency=12, start=c(format(inicDate, "%Y") ,format(inicDate, "%m")), end=c(format(endDate, "%Y") ,format(endDate, "%m")))
+  serieTemp2 <- ts(df[,3], frequency=12, start=c(format(inicDate, "%Y") ,format(inicDate, "%m")), end=c(format(endDate, "%Y") ,format(endDate, "%m")))
+  
+  par(mfrow = c(3, 2))
+  plot.ts(serieTemp1, axes=F, main="PIB agropecuario y silvícola")
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+  
+  plot.ts(serieTemp2, axes=F,main="PIB de Servicios financiero")
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+  
+  trendSerie1 <- decompose(serieTemp1)
+  trendSerie2 <- decompose(serieTemp2)
+  
+  plot.ts(trendSerie1$trend, axes=F,main="Tendencia: PIB agropecuario y silvícola")
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+  plot.ts(trendSerie2$trend, axes=F,main="Tendencia: PIB de Servicios financiero")
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+  
+  plot.ts(trendSerie1$seasonal, axes=F,main="Estacionalidad: PIB agropecuario y silvícola")
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+  plot.ts(trendSerie2$seasonal, axes=F,main="Estacionalidad: PIB de Servicios financiero") 
+  axis(2) # plot the y axis
+  axis(1, at=seq(from=2013,to=2020, by=1.0) )
+  box() # and the box around the plot
+}
+plotSeriesPIB("silvicola", "financieros", "2013-01-01", "2020-04-01")
+
+```
+
+La serie de PIB agropecuario y silvícola presenta reducciones (a mitad de año) y aumentos (a inicios de año) por lo que tiene un componente estacional. El  caso  de  la  serie  PIB de Servicios financiero  presenta caidas variables(0, 1 o 2 veces en el mismo año). En ambas series la tendencia es a incrementar el valor, sin embargo de acuerdo a la estacionalidad los valores cambian, cuando una va en aumento la otra disminuye. 
+
+## 4. Tratamiento y creación de variables
+
+*¿Cómo podríamos evaluar la correlación entre las distintas series de tiempo y cómo se tienen que correlacionar para entrenar un modelo? ¿Mucha correlación, no correlacionadas, da igual?*
+
+La correlación depende del tipo de técnica o algoritm de predicción a utilizar. Si se escoge una regresión es importante que las variables tengan una fuerte correlación.
 
