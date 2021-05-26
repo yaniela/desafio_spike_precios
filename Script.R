@@ -110,7 +110,7 @@ df<-as.data.frame(missing_values_by_columns)
 df$names<-row.names(df)
 plot3 <-ggplot(data = df, aes(x = missing_values_by_columns, y =names , fill = missing_values_by_columns)) + geom_bar(width =0.7, stat = "identity") + scale_fill_gradient(low = "yellow", high = "red") +theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-## cantidad de filas duplicadas en banc son solo 2
+# filas duplicadas en banc 
 sum(duplicated(banc)==TRUE)
 
  # distribucion del dataset
